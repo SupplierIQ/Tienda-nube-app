@@ -3,60 +3,95 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SupplierIQ · Actualizador de precios (versión de prueba)</title>
+<title>SupplierIQ · Actualizador de precios gratis para Tiendanube</title>
+<meta name="description" content="Subí la lista de tu proveedor (Excel, CSV o PDF) y el CSV de Tiendanube: te devolvemos los precios corregidos según tu margen. Gratis hasta 100 productos por uso.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <style>
-  :root { --ink:#151A23; --muted:#5B6472; --line:#E2E5EA; --bg:#F4F6FA; --blue:#1F4FC4; --blue-d:#163A92; --warn-bg:#FDEBDD; --warn:#8A3708; --ok-bg:#E3F2E8; --ok:#1D6436; }
+  :root { --ink:#151A23; --ink2:#3D4553; --muted:#5B6472; --line:#E2E5EA; --bg:#F4F6FA; --blue:#1F4FC4; --blue-d:#163A92; --blue-l:#E3EAFB; --warn-bg:#FDEBDD; --warn:#8A3708; --ok-bg:#E3F2E8; --ok:#1D6436; --amber-bg:#FFF4D6; --amber:#7A5300; }
   * { box-sizing: border-box; }
   body { margin:0; font-family: Inter, system-ui, sans-serif; color: var(--ink); background: var(--bg); }
   a { color: var(--blue); } a:hover { color: var(--blue-d); }
-  header { background:#fff; border-bottom:1px solid var(--line); }
   .wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
-  .top { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:16px 0; }
+  header { background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; }
+  .top { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:14px 0; }
   .brand { display:flex; align-items:center; gap:10px; font-family:'Space Grotesk', Inter, sans-serif; font-weight:700; font-size:18px; color:var(--ink); text-decoration:none; }
   .logo { width:34px; height:34px; border-radius:8px; background:var(--blue); display:flex; align-items:center; justify-content:center; }
-  .badge { padding:4px 10px; border-radius:999px; background:#E3EAFB; color:var(--blue-d); font-size:12px; font-weight:600; }
-  h1 { font-family:'Space Grotesk', Inter, sans-serif; font-size:32px; margin:32px 0 8px; }
-  .lead { margin:0 0 8px; color:#3D4553; font-size:16px; line-height:1.5; max-width:760px; }
-  .privacy { display:flex; gap:8px; align-items:center; font-size:13px; color:var(--ok); margin-bottom:24px; }
-  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:20px; }
-  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:22px; display:flex; flex-direction:column; gap:14px; }
+  .steps { display:flex; flex-wrap:wrap; gap:6px; list-style:none; margin:0; padding:0; font-size:13px; }
+  .steps li { padding:7px 12px; border-radius:999px; background:#EEF1F5; color:var(--ink2); }
+  .steps li.done { background:var(--ok-bg); color:var(--ok); font-weight:600; }
+  .steps li.active { background:var(--blue); color:#fff; font-weight:600; }
+  .hero { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:16px; margin:32px 0 24px; }
+  h1 { font-family:'Space Grotesk', Inter, sans-serif; font-size:32px; line-height:1.15; margin:0 0 8px; }
+  .lead { margin:0; color:var(--ink2); font-size:16px; line-height:1.5; max-width:700px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  .chip { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; background:#fff; border:1px solid var(--line); font-size:13px; color:var(--ink2); }
+  .plan { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; font-size:13px; color:var(--ink2); max-width:300px; line-height:1.5; }
+  .plan strong { color:var(--ink); }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap:20px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:22px; display:flex; flex-direction:column; gap:14px; min-width:0; }
   .card h2 { margin:0; font-size:17px; display:flex; align-items:center; gap:10px; }
   .num { width:28px; height:28px; border-radius:999px; background:var(--blue); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:14px; flex:none; }
+  .num.ok { background:var(--ok); }
   .hint { margin:0; font-size:13px; color:var(--muted); line-height:1.45; }
+  .drop { position:relative; border:2px dashed #A9B4C6; border-radius:12px; background:#F8FAFD; padding:22px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px; transition:background .15s, border-color .15s; }
+  .drop.over { background:var(--blue-l); border-color:var(--blue); }
+  .drop.loaded { border-style:solid; border-color:#B7DCC4; background:#F3FAF5; }
+  .drop input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; }
+  .drop strong { font-size:15px; }
+  .drop span { font-size:13px; color:var(--muted); }
   label { font-size:14px; display:flex; flex-direction:column; gap:6px; font-weight:500; }
   .row { display:flex; flex-wrap:wrap; gap:12px; }
-  .row > label { flex:1 1 140px; }
-  select, input[type=number], input[type=text] { padding:10px; border:1px solid #C9CED6; border-radius:8px; font:inherit; font-weight:400; background:#fff; min-height:44px; }
-  input[type=file] { font:inherit; font-size:14px; }
+  .row > label { flex:1 1 140px; min-width:0; }
+  select, input[type=number], input[type=search] { padding:10px; border:1px solid #C9CED6; border-radius:8px; font:inherit; font-weight:400; background:#fff; min-height:44px; width:100%; }
   .check { flex-direction:row; align-items:center; gap:10px; font-weight:400; }
-  .check input { width:18px; height:18px; }
-  .status { font-size:13px; padding:10px 12px; border-radius:8px; background:var(--bg); color:#3D4553; }
+  .check input { width:18px; height:18px; flex:none; }
+  .status { font-size:13px; padding:10px 12px; border-radius:8px; background:var(--bg); color:var(--ink2); }
   .status.ok { background:var(--ok-bg); color:var(--ok); }
   .status.err { background:var(--warn-bg); color:var(--warn); }
-  .btn { padding:13px 20px; border-radius:8px; border:0; background:var(--blue); color:#fff; font:inherit; font-weight:700; font-size:15px; cursor:pointer; min-height:44px; }
+  .preview { overflow-x:auto; border:1px solid var(--line); border-radius:8px; }
+  .preview table { min-width:0; font-size:12px; }
+  .preview th, .preview td { padding:6px 8px; white-space:nowrap; max-width:220px; overflow:hidden; text-overflow:ellipsis; }
+  .preview th.map { background:var(--blue-l); color:var(--blue-d); }
+  .btn { padding:13px 20px; border-radius:8px; border:0; background:var(--blue); color:#fff; font:inherit; font-weight:700; font-size:15px; cursor:pointer; min-height:44px; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+  .btn:hover { background:var(--blue-d); color:#fff; }
   .btn:disabled { background:#A9B4C6; cursor:not-allowed; }
   .btn.ghost { background:#fff; color:var(--ink); border:1px solid #C9CED6; font-weight:600; }
-  .actions { display:flex; flex-wrap:wrap; gap:12px; justify-content:flex-end; margin:24px 0; }
-  .kpis { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:16px; margin-bottom:20px; }
-  .kpi { background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px; display:flex; flex-direction:column; gap:4px; }
+  .btn.ghost:hover { background:#F4F6FA; color:var(--ink); }
+  .actions { display:flex; flex-wrap:wrap; gap:12px; justify-content:flex-end; align-items:center; margin:24px 0; }
+  .kpis { display:grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr)); gap:16px; margin-bottom:16px; }
+  .kpi { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:4px; }
   .kpi span { font-size:13px; color:var(--muted); }
-  .kpi strong { font-size:28px; }
+  .kpi strong { font-size:26px; }
+  .banner { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:14px 18px; border-radius:12px; background:var(--amber-bg); color:var(--amber); margin-bottom:16px; font-size:14px; }
+  .banner strong { color:#5C3E00; }
   .tablebox { background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
-  .tabletools { display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; align-items:center; padding:14px 18px; border-bottom:1px solid var(--line); }
-  .scroll { overflow-x:auto; max-height:560px; overflow-y:auto; }
-  table { width:100%; min-width:860px; border-collapse:collapse; font-size:14px; }
-  th { position:sticky; top:0; background:#F8F9FB; color:var(--muted); font-weight:600; text-align:left; padding:11px 12px; }
-  td { padding:11px 12px; border-top:1px solid #EEF0F3; }
+  .tabletools { display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; align-items:center; padding:12px 16px; border-bottom:1px solid var(--line); }
+  .tabs { display:flex; flex-wrap:wrap; gap:6px; }
+  .tab { padding:8px 12px; border-radius:999px; border:1px solid #C9CED6; background:#fff; font:inherit; font-size:13px; cursor:pointer; color:var(--ink2); min-height:36px; }
+  .tab[aria-pressed="true"] { background:var(--ink); border-color:var(--ink); color:#fff; font-weight:600; }
+  .search { max-width:260px; }
+  .scroll { overflow:auto; max-height:600px; }
+  table { width:100%; min-width:940px; border-collapse:collapse; font-size:14px; }
+  th { position:sticky; top:0; background:#F8F9FB; color:var(--muted); font-weight:600; text-align:left; padding:10px 12px; z-index:1; }
+  td { padding:10px 12px; border-top:1px solid #EEF0F3; vertical-align:top; }
   td.r, th.r { text-align:right; }
-  .pill { padding:3px 8px; border-radius:999px; font-weight:600; white-space:nowrap; }
+  .sub { display:block; font-size:12px; color:var(--muted); margin-top:2px; }
+  .pill { padding:3px 8px; border-radius:999px; font-weight:600; white-space:nowrap; font-size:13px; }
   .pill.low { background:var(--warn-bg); color:var(--warn); }
   .pill.good { background:var(--ok-bg); color:var(--ok); }
+  .pill.sku { background:#EEF1F5; color:var(--ink2); }
+  .pill.name { background:var(--amber-bg); color:var(--amber); }
   .new { font-weight:700; color:var(--blue); }
+  .locked td { color:#8A93A1; background:#FAFAFB; }
+  .bar { position:sticky; bottom:0; z-index:4; background:var(--ink); color:#fff; border-radius:12px 12px 0 0; padding:14px 18px; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-top:20px; }
+  .bar .btn.ghost { background:transparent; color:#fff; border-color:#5B6472; }
+  .bar .btn.light { background:#fff; color:var(--ink); }
+  .bar select { width:auto; min-height:40px; padding:8px; }
   .hidden { display:none !important; }
-  footer { font-size:13px; color:var(--muted); padding:32px 0 48px; }
+  footer { font-size:13px; color:var(--muted); padding:28px 0 48px; }
 </style>
 </head>
 <body>
@@ -66,43 +101,76 @@
       <span class="logo"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"></path><path d="M14 7h7v7"></path></svg></span>
       SupplierIQ
     </a>
-    <span class="badge">Versión de prueba · gratis</span>
+    <ol class="steps" aria-label="Progreso">
+      <li id="st1" class="active">1 · Lista del proveedor</li>
+      <li id="st2">2 · Productos de la tienda</li>
+      <li id="st3">3 · Revisar</li>
+      <li id="st4">4 · Descargar</li>
+    </ol>
   </div>
 </header>
 
 <main class="wrap">
-  <h1>Actualizá tus precios con la lista nueva del proveedor</h1>
-  <p class="lead">Subí la lista del proveedor y el archivo de productos que exportás de Tiendanube. Te mostramos qué productos pierden margen y te devolvemos el archivo con los precios corregidos, listo para volver a importar.</p>
-  <p class="privacy"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>Tus archivos no se suben a ningún servidor: todo se procesa en tu navegador.</p>
+  <div class="hero">
+    <div>
+      <h1>Actualizá tus precios con la lista nueva del proveedor</h1>
+      <p class="lead">Subí la lista como te llegó (Excel, CSV o PDF) y el archivo de productos de Tiendanube. Revisás los cambios antes de aplicarlos y descargás el archivo listo para importar.</p>
+      <div class="chips">
+        <span class="chip"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>Tus archivos no salen de tu computadora</span>
+        <span class="chip">Lee Excel, CSV y PDF</span>
+        <span class="chip">Cruza por SKU o por nombre</span>
+        <span class="chip">Vista previa antes de aplicar</span>
+      </div>
+    </div>
+    <aside class="plan" aria-label="Plan">
+      <strong>Versión gratuita:</strong> hasta <strong>100 productos por uso</strong>, sin registro ni tarjeta.<br>
+      <strong>Versión Pro</strong> (próximamente): sin límite, proveedores guardados, historial de costos y alertas de margen.
+    </aside>
+  </div>
 
   <div class="grid">
     <section class="card" aria-labelledby="t1">
-      <h2 id="t1"><span class="num">1</span>Lista del proveedor</h2>
-      <p class="hint">Excel (.xlsx, .xls) o CSV, tal como te llegó.</p>
-      <label>Archivo<input type="file" id="supFile" accept=".xlsx,.xls,.csv,.txt"></label>
+      <h2 id="t1"><span class="num" id="n1">1</span>Lista del proveedor</h2>
+      <div class="drop" id="supDrop">
+        <input type="file" id="supFile" accept=".xlsx,.xls,.csv,.txt,.pdf" aria-label="Elegir lista del proveedor">
+        <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1F4FC4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"></path><path d="M7 9l5-5 5 5"></path><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"></path></svg>
+        <strong id="supDropTitle">Arrastrá la lista acá o hacé clic</strong>
+        <span>Excel, CSV o PDF con texto (no escaneado)</span>
+      </div>
       <div id="supStatus" class="status hidden" role="status"></div>
       <div id="supCols" class="hidden" style="display:flex; flex-direction:column; gap:12px">
-        <label>Fila de encabezados<input type="number" id="supHeader" min="1" value="1"></label>
         <div class="row">
+          <label>Fila de encabezados<input type="number" id="supHeader" min="1" value="1"></label>
           <label>Código / SKU<select id="supSku"></select></label>
+        </div>
+        <div class="row">
+          <label>Descripción<select id="supName"></select></label>
           <label>Precio de lista<select id="supPrice"></select></label>
         </div>
         <label>Bonificación % por producto (opcional)<select id="supDisc"></select></label>
+        <div class="preview" aria-label="Vista previa de la lista"><table id="supPreview"></table></div>
+        <p class="hint" id="mapMemo"></p>
       </div>
     </section>
 
     <section class="card" aria-labelledby="t2">
-      <h2 id="t2"><span class="num">2</span>Productos de tu tienda</h2>
-      <p class="hint">En Tiendanube: Productos › Lista de productos › Exportar e importar › Exportar. Subí ese CSV sin modificarlo.</p>
-      <label>Archivo CSV<input type="file" id="stoFile" accept=".csv,.txt"></label>
+      <h2 id="t2"><span class="num" id="n2">2</span>Productos de tu tienda</h2>
+      <div class="drop" id="stoDrop">
+        <input type="file" id="stoFile" accept=".csv,.txt" aria-label="Elegir CSV de Tiendanube">
+        <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1F4FC4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"></path><path d="M7 9l5-5 5 5"></path><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"></path></svg>
+        <strong id="stoDropTitle">Arrastrá el CSV de Tiendanube</strong>
+        <span>Productos › Exportar e importar › Exportar</span>
+      </div>
       <div id="stoStatus" class="status hidden" role="status"></div>
       <div id="stoCols" class="hidden" style="display:flex; flex-direction:column; gap:12px">
         <div class="row">
           <label>SKU<select id="stoSku"></select></label>
           <label>Precio<select id="stoPrice"></select></label>
         </div>
-        <label>Nombre del producto<select id="stoName"></select></label>
-        <label>Actualizar también la columna de costo<select id="stoCost"></select></label>
+        <div class="row">
+          <label>Nombre<select id="stoName"></select></label>
+          <label>Actualizar costo en<select id="stoCost"></select></label>
+        </div>
       </div>
     </section>
 
@@ -110,39 +178,49 @@
       <h2 id="t3"><span class="num">3</span>Cómo calcular</h2>
       <div class="row">
         <label>Margen mínimo %<input type="number" id="cfgMargin" value="30" min="0" max="95" step="1"></label>
-        <label>Redondear a<select id="cfgRound"><option value="0">Sin redondeo</option><option value="10">$ 10</option><option value="50" selected>$ 50</option><option value="100">$ 100</option><option value="500">$ 500</option></select></label>
+        <label>Redondear a<select id="cfgRound"><option value="0">Sin redondeo</option><option value="1">$ 1</option><option value="10">$ 10</option><option value="50" selected>$ 50</option><option value="100">$ 100</option><option value="500">$ 500</option></select></label>
       </div>
       <div class="row">
         <label>Bonificación general %<input type="number" id="cfgDisc" value="0" min="0" max="100" step="0.5"></label>
         <label>Flete / otros %<input type="number" id="cfgFreight" value="0" min="0" step="0.5"></label>
       </div>
       <label class="check"><input type="checkbox" id="cfgVat">Sumar IVA (21%) al costo</label>
-      <label class="check"><input type="checkbox" id="cfgAll">Aplicar el margen mínimo a todos (también bajar precios altos)</label>
-      <p class="hint">El margen se calcula sobre el precio de venta: (precio − costo) ÷ precio.</p>
+      <label class="check"><input type="checkbox" id="cfgName" checked>Cruzar por nombre si no coincide el SKU</label>
+      <label class="check"><input type="checkbox" id="cfgAll">Llevar todos al margen mínimo (también bajar precios)</label>
+      <p class="hint">Margen sobre el precio de venta: (precio − costo) ÷ precio.</p>
     </section>
   </div>
 
   <div class="actions">
-    <button class="btn" id="run" type="button" disabled>Calcular precios</button>
+    <button class="btn" id="run" type="button" disabled>Ver vista previa de precios</button>
   </div>
 
   <section id="results" class="hidden" aria-labelledby="rt">
-    <h2 id="rt" style="font-family:'Space Grotesk', Inter, sans-serif; font-size:24px; margin:8px 0 16px">Resultado</h2>
+    <h2 id="rt" style="font-family:'Space Grotesk', Inter, sans-serif; font-size:24px; margin:8px 0 16px">Vista previa</h2>
     <div class="kpis">
-      <div class="kpi"><span>Productos encontrados</span><strong id="kMatched">0</strong><span id="kMatchedSub"></span></div>
+      <div class="kpi"><span>Productos cruzados</span><strong id="kMatched">0</strong><span id="kMatchedSub"></span></div>
       <div class="kpi"><span>Debajo del margen mínimo</span><strong id="kBelow" style="color:var(--warn)">0</strong><span>con el costo nuevo</span></div>
-      <div class="kpi"><span>Precios a actualizar</span><strong id="kChange">0</strong><span>seleccionados</span></div>
-      <div class="kpi"><span>Sin coincidencia</span><strong id="kUnmatched">0</strong><span>códigos del proveedor que no están en tu tienda</span></div>
+      <div class="kpi"><span>Por nombre, para revisar</span><strong id="kName" style="color:var(--amber)">0</strong><span>confirmá que sean el mismo producto</span></div>
+      <div class="kpi"><span>Sin coincidencia</span><strong id="kUnmatched">0</strong><span>productos de la lista que no están en tu tienda</span></div>
+    </div>
+    <div class="banner hidden" id="limitBanner" role="status">
+      <span><strong id="limitText"></strong> La versión gratuita aplica hasta 100 productos por uso. Podés volver a usarla con los que faltan.</span>
+      <a class="btn" id="proBtn" href="mailto:maxicongar@gmail.com?subject=Quiero%20SupplierIQ%20Pro">Quiero la versión Pro</a>
     </div>
     <div class="tablebox">
       <div class="tabletools">
-        <label class="check"><input type="checkbox" id="onlyBelow" checked>Mostrar solo los que cambian</label>
-        <span class="hint" id="shownInfo"></span>
+        <div class="tabs" role="group" aria-label="Filtrar">
+          <button type="button" class="tab" data-f="change" aria-pressed="true">Cambian <span id="cChange"></span></button>
+          <button type="button" class="tab" data-f="below" aria-pressed="false">Bajo margen <span id="cBelow"></span></button>
+          <button type="button" class="tab" data-f="name" aria-pressed="false">Por nombre <span id="cName"></span></button>
+          <button type="button" class="tab" data-f="all" aria-pressed="false">Todos <span id="cAll"></span></button>
+        </div>
+        <input type="search" id="q" class="search" placeholder="Buscar producto o SKU" aria-label="Buscar producto o SKU">
       </div>
       <div class="scroll">
         <table>
           <thead><tr>
-            <th scope="col">Aplicar</th><th scope="col">Producto</th><th scope="col">SKU</th>
+            <th scope="col">Aplicar</th><th scope="col">Producto</th><th scope="col">Cruce</th>
             <th scope="col" class="r">Costo nuevo</th><th scope="col" class="r">Precio actual</th>
             <th scope="col">Margen actual</th><th scope="col" class="r">Precio nuevo</th><th scope="col">Margen nuevo</th>
           </tr></thead>
@@ -150,17 +228,20 @@
         </table>
       </div>
     </div>
-    <div class="actions">
-      <label style="flex-direction:row; align-items:center; gap:8px">Codificación del archivo
-        <select id="outEnc"><option value="same">Igual que el original</option><option value="utf8">UTF-8</option><option value="latin1">Latin-1 (Windows)</option></select>
-      </label>
-      <button class="btn ghost" id="dlReport" type="button">Descargar reporte de cambios</button>
-      <button class="btn" id="dlCsv" type="button">Descargar CSV para Tiendanube</button>
+    <div class="bar">
+      <div><strong id="selCount">0</strong> precios seleccionados <span id="selLimit" style="color:#C5CBD5"></span><br><span style="font-size:13px; color:#C5CBD5">Guardá el CSV original: es tu forma de deshacer.</span></div>
+      <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center">
+        <label style="flex-direction:row; align-items:center; gap:8px; font-weight:400; font-size:13px; color:#C5CBD5">Codificación
+          <select id="outEnc"><option value="same">Igual que el original</option><option value="utf8">UTF-8</option><option value="latin1">Latin-1</option></select>
+        </label>
+        <button class="btn ghost" id="dlReport" type="button">Reporte de cambios</button>
+        <button class="btn light" id="dlCsv" type="button">Descargar CSV para Tiendanube</button>
+      </div>
     </div>
-    <p class="hint">Antes de importar, guardá una copia del CSV original. Importalo en Tiendanube con la opción "Modificar productos ya existentes".</p>
+    <p class="hint" style="margin-top:12px">En Tiendanube: Productos › Exportar e importar › Importar, y elegí "Modificar productos ya existentes".</p>
   </section>
 
-  <footer>SupplierIQ · Versión de prueba · <a href="../">Volver al inicio</a> · ¿Encontraste un error o tenés una idea? <a href="mailto:maxicongar@gmail.com?subject=SupplierIQ%20herramienta">Escribime</a></footer>
+  <footer>SupplierIQ · Versión gratuita de prueba · <a href="../">Inicio</a> · ¿Un archivo que no se lee bien o una idea? <a href="mailto:maxicongar@gmail.com?subject=SupplierIQ%20herramienta">Escribime</a></footer>
 </main>
 
 <script>
@@ -284,41 +365,58 @@
     return c;
   }
 
-  // Cruza proveedor y tienda. supplier: [{sku, list, discount}], store: [{rowIndex, sku, price}]
+  // Cruza proveedor y tienda. supplier: [{sku, list, discount, name}], store: [{rowIndex, sku, price, name}]
+  // Primero por SKU; si cfg.matchByName, los que quedan se cruzan por nombre (similitud >= 0,55).
   function analyze(supplier, store, cfg) {
     var bySku = {};
-    supplier.forEach(function (s) {
+    supplier.forEach(function (s, i) {
+      s._i = i;
       var k = normSku(s.sku);
       if (k && !isNaN(s.list)) bySku[k] = s;
     });
-    var results = [];
-    var matchedSkus = {};
+    var used = {};
+    var pairs = [];
+    var pending = [];
     store.forEach(function (p) {
       var k = normSku(p.sku);
-      if (!k || !bySku[k]) return;
-      matchedSkus[k] = true;
-      var s = bySku[k];
+      if (k && bySku[k]) { used[bySku[k]._i] = true; pairs.push({ p: p, s: bySku[k], type: 'sku', score: 1 }); }
+      else pending.push(p);
+    });
+    if (cfg.matchByName) {
+      var cands = [];
+      var freeSup = supplier.filter(function (s) { return !used[s._i] && s.name && !isNaN(s.list); });
+      pending.forEach(function (p) {
+        if (!p.name) return;
+        freeSup.forEach(function (s) {
+          var sc = nameScore(p.name, s.name);
+          if (sc >= 0.55) cands.push({ p: p, s: s, score: sc });
+        });
+      });
+      cands.sort(function (a, b) { return b.score - a.score; });
+      var takenP = {};
+      cands.forEach(function (c) {
+        if (takenP[c.p.rowIndex] || used[c.s._i]) return;
+        takenP[c.p.rowIndex] = true; used[c.s._i] = true;
+        pairs.push({ p: c.p, s: c.s, type: 'nombre', score: c.score });
+      });
+    }
+    var results = pairs.map(function (pair) {
+      var p = pair.p, s = pair.s;
       var cost = finalCost(s.list, s.discount, cfg);
       var price = p.price;
       var margin = price > 0 ? (price - cost) / price : NaN;
-      var target = cost / (1 - cfg.minMargin / 100);
-      var suggested = roundUp(target, cfg.rounding);
+      var suggested = roundUp(cost / (1 - cfg.minMargin / 100), cfg.rounding);
       var below = !(margin >= cfg.minMargin / 100 - 1e-9);
       var newPrice = below ? suggested : (cfg.applyAll ? suggested : price);
-      results.push({
-        rowIndex: p.rowIndex,
-        sku: p.sku,
-        name: p.name || s.name || '',
-        cost: cost,
-        price: price,
-        margin: margin,
-        newPrice: newPrice,
+      return {
+        rowIndex: p.rowIndex, sku: p.sku, name: p.name || s.name || '', supplierName: s.name || '',
+        matchType: pair.type, score: pair.score,
+        cost: cost, price: price, margin: margin, newPrice: newPrice,
         newMargin: newPrice > 0 ? (newPrice - cost) / newPrice : NaN,
-        below: below,
-        change: newPrice !== price
-      });
-    });
-    var unmatchedSupplier = supplier.filter(function (s) { var k = normSku(s.sku); return k && !matchedSkus[k]; });
+        below: below, change: newPrice !== price
+      };
+    }).sort(function (a, b) { return a.rowIndex - b.rowIndex; });
+    var unmatchedSupplier = supplier.filter(function (s) { return !used[s._i] && (normSku(s.sku) || s.name); });
     return { results: results, unmatchedSupplier: unmatchedSupplier };
   }
 
@@ -331,7 +429,79 @@
     return useComma ? out.replace('.', ',') : out;
   }
 
+  // ---------- Cruce por nombre ----------
+  var STOP = { de: 1, del: 1, la: 1, el: 1, los: 1, las: 1, con: 1, para: 1, y: 1, x: 1, c: 1, p: 1, un: 1, una: 1, en: 1 };
+  function nameTokens(s) {
+    var t = String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/(\d)([a-z])/g, '$1 $2').replace(/([a-z])(\d)/g, '$1 $2')
+      .replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!t) return [];
+    return t.split(' ').filter(function (w) { return w && !STOP[w]; });
+  }
+  function nameScore(a, b) {
+    var ta = nameTokens(a), tb = nameTokens(b);
+    if (!ta.length || !tb.length) return 0;
+    var setB = {}; tb.forEach(function (w) { setB[w] = (setB[w] || 0) + 1; });
+    var common = 0;
+    ta.forEach(function (w) {
+      if (setB[w]) { common++; setB[w]--; return; }
+      // coincidencia por prefijo (abreviaturas: "perc" ~ "percutor", "univ" ~ "universal")
+      if (w.length >= 3 && !/^\d/.test(w)) {
+        for (var k in setB) if (setB[k] && k.length >= 3 && !/^\d/.test(k) && (k.indexOf(w) === 0 || w.indexOf(k) === 0)) { common += 0.8; setB[k]--; return; }
+      }
+    });
+    var score = (2 * common) / (ta.length + tb.length);
+    var na = ta.filter(function (w) { return /^\d/.test(w); }).sort().join(',');
+    var nb = tb.filter(function (w) { return /^\d/.test(w); }).sort().join(',');
+    if (na && nb && na !== nb) score *= 0.5; // medidas o cantidades distintas: probablemente otro producto
+    return Math.min(1, score);
+  }
+
+  // ---------- PDF: de textos con posición a filas y columnas ----------
+  // items: [{str, x, y, w}] con y creciente hacia abajo.
+  function pdfItemsToRows(items) {
+    var clean = items.filter(function (it) { return String(it.str).trim() !== ''; })
+      .sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+    var lines = [];
+    clean.forEach(function (it) {
+      var line = lines.length ? lines[lines.length - 1] : null;
+      if (line && Math.abs(line.y - it.y) <= 3) line.items.push(it);
+      else lines.push({ y: it.y, items: [it] });
+    });
+    return lines.map(function (line) {
+      var its = line.items.sort(function (a, b) { return a.x - b.x; });
+      var cells = [], cur = null;
+      its.forEach(function (it) {
+        var gap = cur ? it.x - (cur.x + cur.w) : Infinity;
+        if (cur && gap < 6) { cur.str += (gap > 1.5 ? ' ' : '') + it.str; cur.w = it.x + it.w - cur.x; }
+        else { cur = { str: it.str, x: it.x, w: it.w }; cells.push(cur); }
+      });
+      return cells.map(function (c) { return { text: c.str.trim(), x: c.x, w: c.w }; });
+    });
+  }
+  // Alinea las celdas de cada fila a las columnas del encabezado (por posición x).
+  function alignToHeader(lineCells, headerIdx) {
+    var header = lineCells[headerIdx];
+    return lineCells.map(function (cells) {
+      var row = header.map(function () { return ''; });
+      cells.forEach(function (c) {
+        var best = -1, bestOv = 0, nearest = 0, nearD = Infinity;
+        var cx = c.x + c.w / 2;
+        header.forEach(function (h, i) {
+          var ov = Math.min(c.x + c.w, h.x + h.w) - Math.max(c.x, h.x);
+          if (ov > bestOv) { bestOv = ov; best = i; }
+          var d = Math.abs(cx - (h.x + h.w / 2));
+          if (d < nearD) { nearD = d; nearest = i; }
+        });
+        var i = best >= 0 ? best : nearest;
+        row[i] = row[i] ? row[i] + ' ' + c.text : c.text;
+      });
+      return row;
+    });
+  }
+
   root.SIQ = {
+    nameTokens: nameTokens, nameScore: nameScore, pdfItemsToRows: pdfItemsToRows, alignToHeader: alignToHeader,
     parseNum: parseNum, normSku: normSku, detectDelimiter: detectDelimiter, parseCSV: parseCSV,
     toCSV: toCSV, guessColumn: guessColumn, roundUp: roundUp, finalCost: finalCost,
     analyze: analyze, formatLike: formatLike
@@ -342,13 +512,31 @@
 <script>
 (function () {
   'use strict';
+  var FREE_LIMIT = 100;
+  var COUNTER_NS = 'supplieriq';
   var $ = function (id) { return document.getElementById(id); };
-  var state = { supRows: null, sto: null, analysis: null, selected: {} };
+  var state = { supRows: null, supName: '', sto: null, analysis: null, selected: {}, locked: {}, filter: 'change' };
+
+  // Contador anónimo de uso: solo suma eventos, no envía archivos ni datos.
+  function track(ev) {
+    try { fetch('https://abacus.jasoncameron.dev/hit/' + COUNTER_NS + '/' + ev, { mode: 'cors', keepalive: true }).catch(function () {}); } catch (e) {}
+  }
+  track('visitas');
+
   var esc = function (s) { return String(s === undefined || s === null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   var money = function (n) { return isNaN(n) ? '—' : '$ ' + n.toLocaleString('es-AR', { maximumFractionDigits: 2 }); };
   var pct = function (n) { return isNaN(n) ? '—' : (n * 100).toLocaleString('es-AR', { maximumFractionDigits: 1 }) + '%'; };
-
   function setStatus(el, msg, kind) { el.textContent = msg; el.className = 'status' + (kind ? ' ' + kind : ''); }
+  function step(n) {
+    for (var i = 1; i <= 4; i++) $('st' + i).className = i < n ? 'done' : (i === n ? 'active' : '');
+  }
+  function store(key, val) { try { if (val === undefined) return JSON.parse(localStorage.getItem(key) || 'null'); localStorage.setItem(key, JSON.stringify(val)); } catch (e) { return null; } }
+
+  ['supDrop', 'stoDrop'].forEach(function (id) {
+    var d = $(id);
+    d.addEventListener('dragover', function () { d.classList.add('over'); });
+    ['dragleave', 'drop'].forEach(function (ev) { d.addEventListener(ev, function () { d.classList.remove('over'); }); });
+  });
 
   function decodeText(buf) {
     var t = new TextDecoder('utf-8').decode(buf);
@@ -358,65 +546,112 @@
 
   function fillSelect(sel, headers, guess, allowNone) {
     sel.innerHTML = (allowNone ? '<option value="-1">— Ninguna —</option>' : '') +
-      headers.map(function (h, i) { return '<option value="' + i + '">' + esc(h || ('Columna ' + (i + 1))) + '</option>'; }).join('');
+      headers.map(function (h, i) { return '<option value="' + i + '">' + esc(String(h).trim() || ('Columna ' + (i + 1))) + '</option>'; }).join('');
     sel.value = String(guess >= 0 ? guess : (allowNone ? -1 : 0));
   }
 
-  var SKU_NAMES = ['SKU', 'Código', 'Codigo', 'Cod. Art.', 'Cod Art', 'Cód.', 'Cod', 'Artículo', 'Articulo', 'Referencia', 'Ref'];
-  var PRICE_NAMES = ['Precio de lista', 'P. Lista', 'Precio lista', 'Lista', 'Precio unitario', 'Precio s/IVA', 'Costo', 'Precio neto', 'Precio'];
-  var DISC_NAMES = ['Bonif', 'Bonificación', 'Bonificacion', 'Descuento', 'Dto', 'Desc'];
+  var SKU_NAMES = ['SKU', 'Código', 'Codigo', 'Cod. Art.', 'Cod Art', 'Cód.', 'Cod', 'Artículo', 'Articulo', 'Referencia', 'Ref', 'Item'];
+  var PRICE_NAMES = ['Precio de lista', 'P. Lista', 'Precio lista', 'Lista', 'Precio unitario', 'Precio s/IVA', 'Costo', 'Precio neto', 'Precio', 'Importe'];
+  var DISC_NAMES = ['Bonif', 'Bonificación', 'Bonificacion', 'Descuento', 'Dto', 'Desc %'];
+  var NAME_NAMES = ['Descripción', 'Descripcion', 'Detalle', 'Producto', 'Nombre', 'Artículo', 'Articulo'];
 
   function guessHeaderRow(rows) {
-    for (var i = 0; i < Math.min(rows.length, 25); i++) {
-      if (SIQ.guessColumn(rows[i].map(String), SKU_NAMES) > -1 && SIQ.guessColumn(rows[i].map(String), PRICE_NAMES) > -1) return i;
+    for (var i = 0; i < Math.min(rows.length, 30); i++) {
+      var h = rows[i].map(String);
+      if (SIQ.guessColumn(h, PRICE_NAMES) > -1 && (SIQ.guessColumn(h, SKU_NAMES) > -1 || SIQ.guessColumn(h, NAME_NAMES) > -1)) return i;
     }
-    for (var j = 0; j < Math.min(rows.length, 25); j++) {
+    for (var j = 0; j < Math.min(rows.length, 30); j++) {
       if (rows[j].filter(function (c) { return String(c).trim() !== ''; }).length >= 3) return j;
     }
     return 0;
   }
 
-  function refreshSupColumns() {
+  function signature(headers) { return 'siq-map:' + headers.map(function (h) { return String(h).trim().toLowerCase(); }).join('|'); }
+
+  function refreshSupColumns(useMemo) {
     var rows = state.supRows; if (!rows) return;
     var hr = Math.max(0, Math.min(rows.length - 1, (parseInt($('supHeader').value, 10) || 1) - 1));
     var headers = rows[hr].map(function (c) { return String(c); });
-    fillSelect($('supSku'), headers, SIQ.guessColumn(headers, SKU_NAMES), false);
-    fillSelect($('supPrice'), headers, SIQ.guessColumn(headers, PRICE_NAMES), false);
-    fillSelect($('supDisc'), headers, SIQ.guessColumn(headers, DISC_NAMES), true);
+    var memo = useMemo ? store(signature(headers)) : null;
+    fillSelect($('supSku'), headers, memo ? memo.sku : SIQ.guessColumn(headers, SKU_NAMES), true);
+    fillSelect($('supName'), headers, memo ? memo.name : SIQ.guessColumn(headers, NAME_NAMES), true);
+    fillSelect($('supPrice'), headers, memo ? memo.price : SIQ.guessColumn(headers, PRICE_NAMES), false);
+    fillSelect($('supDisc'), headers, memo ? memo.disc : SIQ.guessColumn(headers, DISC_NAMES), true);
+    $('mapMemo').textContent = memo ? 'Usamos las columnas que elegiste la última vez para este formato.' : 'La próxima lista con este mismo formato se configura sola.';
+    renderPreview();
   }
 
-  $('supFile').addEventListener('change', function (e) {
-    var f = e.target.files[0]; if (!f) return;
+  function renderPreview() {
+    var rows = state.supRows; if (!rows) return;
+    var hr = (parseInt($('supHeader').value, 10) || 1) - 1;
+    var mapped = {};
+    [['supSku', 'SKU'], ['supName', 'Descripción'], ['supPrice', 'Precio'], ['supDisc', 'Bonif.']].forEach(function (p) { var v = +$(p[0]).value; if (v >= 0) mapped[v] = p[1]; });
+    var head = rows[hr] || [];
+    var html = '<thead><tr>' + head.map(function (h, i) { return '<th class="' + (mapped[i] !== undefined ? 'map' : '') + '">' + esc(mapped[i] !== undefined ? mapped[i] + ' ← ' + h : h) + '</th>'; }).join('') + '</tr></thead><tbody>';
+    rows.slice(hr + 1, hr + 5).forEach(function (r) { html += '<tr>' + head.map(function (_, i) { return '<td>' + esc(r[i]) + '</td>'; }).join('') + '</tr>'; });
+    $('supPreview').innerHTML = html + '</tbody>';
+  }
+  ['supSku', 'supName', 'supPrice', 'supDisc'].forEach(function (id) { $(id).addEventListener('change', renderPreview); });
+  $('supHeader').addEventListener('change', function () { refreshSupColumns(false); });
+
+  function readPdf(buf) {
+    if (typeof pdfjsLib === 'undefined') return Promise.reject(new Error('No se pudo cargar el lector de PDF. Revisá tu conexión.'));
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+    return pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise.then(function (doc) {
+      var items = [], chain = Promise.resolve();
+      for (var p = 1; p <= doc.numPages; p++) (function (pn) {
+        chain = chain.then(function () { return doc.getPage(pn); }).then(function (page) {
+          var vp = page.getViewport({ scale: 1 });
+          return page.getTextContent().then(function (tc) {
+            tc.items.forEach(function (it) { if (it.str) items.push({ str: it.str, x: it.transform[4], y: (pn - 1) * 10000 + vp.height - it.transform[5], w: it.width }); });
+          });
+        });
+      })(p);
+      return chain.then(function () {
+        if (!items.length) throw new Error('El PDF no tiene texto seleccionable (parece escaneado). Pedile al proveedor la lista en Excel.');
+        var lines = SIQ.pdfItemsToRows(items);
+        var hi = 0;
+        for (var i = 0; i < Math.min(lines.length, 40); i++) {
+          var t = lines[i].map(function (c) { return c.text; });
+          if (SIQ.guessColumn(t, PRICE_NAMES) > -1 && (SIQ.guessColumn(t, SKU_NAMES) > -1 || SIQ.guessColumn(t, NAME_NAMES) > -1)) { hi = i; break; }
+        }
+        return SIQ.alignToHeader(lines, hi);
+      });
+    });
+  }
+
+  function loadSupplier(f) {
     var st = $('supStatus');
     setStatus(st, 'Leyendo ' + f.name + '…');
     var reader = new FileReader();
     reader.onload = function () {
-      try {
-        var rows;
-        if (/\.(xlsx|xls)$/i.test(f.name)) {
-          if (typeof XLSX === 'undefined') throw new Error('No se pudo cargar el lector de Excel. Revisá tu conexión o guardá la lista como CSV.');
+      var p;
+      if (/\.pdf$/i.test(f.name)) p = readPdf(reader.result);
+      else if (/\.(xlsx|xls)$/i.test(f.name)) {
+        p = new Promise(function (ok, ko) {
+          if (typeof XLSX === 'undefined') return ko(new Error('No se pudo cargar el lector de Excel. Revisá tu conexión o guardá la lista como CSV.'));
           var wb = XLSX.read(new Uint8Array(reader.result), { type: 'array' });
-          var ws = wb.Sheets[wb.SheetNames[0]];
-          rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
-        } else {
-          rows = SIQ.parseCSV(decodeText(reader.result).text).rows;
-        }
+          ok(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: true }));
+        });
+      } else p = Promise.resolve(SIQ.parseCSV(decodeText(reader.result).text).rows);
+      p.then(function (rows) {
         rows = rows.filter(function (r) { return r.some(function (c) { return String(c).trim() !== ''; }); });
         if (rows.length < 2) throw new Error('El archivo no tiene filas con datos.');
-        state.supRows = rows;
+        state.supRows = rows; state.supName = f.name;
         $('supHeader').value = guessHeaderRow(rows) + 1;
-        refreshSupColumns();
+        refreshSupColumns(true);
         $('supCols').classList.remove('hidden');
-        setStatus(st, f.name + ' · ' + (rows.length - 1) + ' filas leídas. Revisá que las columnas sean las correctas.', 'ok');
-      } catch (err) {
+        $('supDrop').classList.add('loaded'); $('supDropTitle').textContent = f.name; $('n1').classList.add('ok');
+        setStatus(st, (rows.length - 1) + ' filas leídas. Revisá en la vista previa que las columnas sean las correctas.', 'ok');
+        step(state.sto ? 3 : 2);
+      }).catch(function (err) {
         state.supRows = null; $('supCols').classList.add('hidden');
         setStatus(st, err.message || 'No se pudo leer el archivo.', 'err');
-      }
-      updateRun();
+      }).then(updateRun);
     };
     reader.readAsArrayBuffer(f);
-  });
-  $('supHeader').addEventListener('change', refreshSupColumns);
+  }
+  $('supFile').addEventListener('change', function (e) { if (e.target.files[0]) loadSupplier(e.target.files[0]); });
 
   $('stoFile').addEventListener('change', function (e) {
     var f = e.target.files[0]; if (!f) return;
@@ -429,12 +664,14 @@
         if (parsed.rows.length < 2) throw new Error('El CSV no tiene productos.');
         state.sto = { rows: parsed.rows, delim: parsed.delim, enc: dec.enc, name: f.name };
         var headers = parsed.rows[0];
-        fillSelect($('stoSku'), headers, SIQ.guessColumn(headers, ['SKU']), false);
+        fillSelect($('stoSku'), headers, SIQ.guessColumn(headers, ['SKU']), true);
         fillSelect($('stoPrice'), headers, SIQ.guessColumn(headers, ['Precio']), false);
         fillSelect($('stoName'), headers, SIQ.guessColumn(headers, ['Nombre']), true);
         fillSelect($('stoCost'), headers, SIQ.guessColumn(headers, ['Costo']), true);
         $('stoCols').classList.remove('hidden');
-        setStatus(st, f.name + ' · ' + (parsed.rows.length - 1) + ' filas de productos.', 'ok');
+        $('stoDrop').classList.add('loaded'); $('stoDropTitle').textContent = f.name; $('n2').classList.add('ok');
+        setStatus(st, (parsed.rows.length - 1) + ' filas de productos.', 'ok');
+        step(state.supRows ? 3 : 1);
       } catch (err) {
         state.sto = null; $('stoCols').classList.add('hidden');
         setStatus(st, err.message || 'No se pudo leer el archivo.', 'err');
@@ -453,6 +690,7 @@
       generalDiscount: parseFloat($('cfgDisc').value) || 0,
       freight: parseFloat($('cfgFreight').value) || 0,
       addVat: $('cfgVat').checked, vatPct: 21,
+      matchByName: $('cfgName').checked,
       applyAll: $('cfgAll').checked
     };
   }
@@ -460,63 +698,110 @@
   $('run').addEventListener('click', function () {
     var rows = state.supRows;
     var hr = (parseInt($('supHeader').value, 10) || 1) - 1;
-    var iS = +$('supSku').value, iP = +$('supPrice').value, iD = +$('supDisc').value;
+    var iS = +$('supSku').value, iN = +$('supName').value, iP = +$('supPrice').value, iD = +$('supDisc').value;
+    store(signature(rows[hr].map(String)), { sku: iS, name: iN, price: iP, disc: iD });
     var supplier = rows.slice(hr + 1).map(function (r) {
-      return { sku: r[iS], list: SIQ.parseNum(r[iP]), discount: iD >= 0 ? SIQ.parseNum(r[iD]) : 0 };
-    }).filter(function (s) { return SIQ.normSku(s.sku) && !isNaN(s.list) && s.list > 0; });
+      return { sku: iS >= 0 ? r[iS] : '', name: iN >= 0 ? String(r[iN]) : '', list: SIQ.parseNum(r[iP]), discount: iD >= 0 ? SIQ.parseNum(r[iD]) : 0 };
+    }).filter(function (s) { return (SIQ.normSku(s.sku) || s.name.trim()) && !isNaN(s.list) && s.list > 0; });
 
     var sto = state.sto;
     var jS = +$('stoSku').value, jP = +$('stoPrice').value, jN = +$('stoName').value;
-    var store = sto.rows.slice(1).map(function (r, i) {
-      return { rowIndex: i + 1, sku: r[jS], price: SIQ.parseNum(r[jP]), name: jN >= 0 ? r[jN] : '' };
+    var products = sto.rows.slice(1).map(function (r, i) {
+      return { rowIndex: i + 1, sku: jS >= 0 ? r[jS] : '', price: SIQ.parseNum(r[jP]), name: jN >= 0 ? r[jN] : '' };
     });
 
-    var a = SIQ.analyze(supplier, store, cfg());
-    state.analysis = a; state.priceCol = jP; state.costCol = +$('stoCost').value; state.selected = {};
-    a.results.forEach(function (r) { if (r.change) state.selected[r.rowIndex] = true; });
+    var a = SIQ.analyze(supplier, products, cfg());
+    state.analysis = a; state.priceCol = jP; state.costCol = +$('stoCost').value; state.selected = {}; state.locked = {};
+    // Prioriza los que están bajo margen; aplica el límite gratuito.
+    var changing = a.results.filter(function (r) { return r.change; })
+      .sort(function (x, y) { return (y.below - x.below) || (x.rowIndex - y.rowIndex); });
+    changing.forEach(function (r, idx) {
+      if (idx >= FREE_LIMIT) { state.locked[r.rowIndex] = true; return; }
+      if (r.matchType === 'sku' || r.score >= 0.75) state.selected[r.rowIndex] = true;
+    });
+    var lockedN = Object.keys(state.locked).length;
+    $('limitBanner').classList.toggle('hidden', !lockedN);
+    $('limitText').textContent = lockedN ? 'Encontramos ' + changing.length + ' precios para actualizar.' : '';
+    if (lockedN) track('limite_alcanzado');
+    track('calculos');
     render();
+    step(3);
     $('results').classList.remove('hidden');
     $('results').scrollIntoView({ behavior: 'smooth' });
   });
 
+  function selectedCount() { return Object.keys(state.selected).length; }
+
   function render() {
     var a = state.analysis; if (!a) return;
     var res = a.results;
+    var byName = res.filter(function (r) { return r.matchType === 'nombre'; });
     $('kMatched').textContent = res.length;
-    $('kMatchedSub').textContent = 'filas de tu tienda con el mismo SKU';
+    $('kMatchedSub').textContent = (res.length - byName.length) + ' por SKU · ' + byName.length + ' por nombre';
     $('kBelow').textContent = res.filter(function (r) { return r.below; }).length;
-    $('kChange').textContent = Object.keys(state.selected).length;
+    $('kName').textContent = byName.length;
     $('kUnmatched').textContent = a.unmatchedSupplier.length;
-    var only = $('onlyBelow').checked;
-    var shown = res.filter(function (r) { return !only || r.change; });
-    var limit = 500;
-    $('shownInfo').textContent = shown.length > limit ? 'Mostrando 500 de ' + shown.length + ' (el archivo incluye todos)' : shown.length + ' productos';
-    $('tbody').innerHTML = shown.slice(0, limit).map(function (r) {
+    $('cChange').textContent = '(' + res.filter(function (r) { return r.change; }).length + ')';
+    $('cBelow').textContent = '(' + res.filter(function (r) { return r.below; }).length + ')';
+    $('cName').textContent = '(' + byName.length + ')';
+    $('cAll').textContent = '(' + res.length + ')';
+    var q = $('q').value.trim().toLowerCase();
+    var f = state.filter;
+    var shown = res.filter(function (r) {
+      if (f === 'change' && !r.change) return false;
+      if (f === 'below' && !r.below) return false;
+      if (f === 'name' && r.matchType !== 'nombre') return false;
+      if (q && (String(r.name) + ' ' + String(r.sku)).toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+    $('tbody').innerHTML = shown.slice(0, 500).map(function (r) {
+      var locked = !!state.locked[r.rowIndex];
       var checked = state.selected[r.rowIndex] ? ' checked' : '';
-      var dis = r.change ? '' : ' disabled';
-      return '<tr>' +
+      var dis = (!r.change || locked) ? ' disabled' : '';
+      var match = r.matchType === 'sku'
+        ? '<span class="pill sku">SKU</span>'
+        : '<span class="pill name">Nombre ' + Math.round(r.score * 100) + '%</span><span class="sub">Proveedor: ' + esc(r.supplierName) + '</span>';
+      var newCell = locked ? '<span title="Disponible en la versión Pro">Pro · ' + money(r.newPrice) + '</span>' : (r.change ? money(r.newPrice) : 'Mantener');
+      return '<tr class="' + (locked ? 'locked' : '') + '">' +
         '<td><input type="checkbox" data-row="' + r.rowIndex + '"' + checked + dis + ' aria-label="Aplicar precio nuevo a ' + esc(r.name || r.sku) + '" style="width:18px;height:18px"></td>' +
-        '<td>' + esc(r.name) + '</td><td>' + esc(r.sku) + '</td>' +
+        '<td>' + esc(r.name) + '<span class="sub">SKU ' + esc(r.sku || '—') + '</span></td><td>' + match + '</td>' +
         '<td class="r">' + money(r.cost) + '</td><td class="r">' + money(r.price) + '</td>' +
         '<td><span class="pill ' + (r.below ? 'low' : 'good') + '">' + pct(r.margin) + '</span></td>' +
-        '<td class="r ' + (r.change ? 'new' : '') + '">' + (r.change ? money(r.newPrice) : 'Mantener') + '</td>' +
+        '<td class="r ' + (r.change && !locked ? 'new' : '') + '">' + newCell + '</td>' +
         '<td>' + pct(r.newMargin) + '</td></tr>';
-    }).join('');
+    }).join('') || '<tr><td colspan="8" style="padding:24px; text-align:center; color:var(--muted)">No hay productos en este filtro.</td></tr>';
+    updateSel();
   }
 
-  $('onlyBelow').addEventListener('change', render);
+  function updateSel() {
+    var n = selectedCount();
+    $('selCount').textContent = n;
+    $('selLimit').textContent = '(máximo ' + FREE_LIMIT + ' en la versión gratuita)';
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) {
+    b.addEventListener('click', function () {
+      state.filter = b.getAttribute('data-f');
+      Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      render();
+    });
+  });
+  $('q').addEventListener('input', render);
   $('tbody').addEventListener('change', function (e) {
     var row = e.target.getAttribute('data-row'); if (!row) return;
-    if (e.target.checked) state.selected[row] = true; else delete state.selected[row];
-    $('kChange').textContent = Object.keys(state.selected).length;
+    if (e.target.checked) {
+      if (selectedCount() >= FREE_LIMIT) { e.target.checked = false; $('limitBanner').classList.remove('hidden'); $('limitText').textContent = 'Llegaste a 100 productos seleccionados.'; return; }
+      state.selected[row] = true;
+    } else delete state.selected[row];
+    updateSel();
   });
+  $('proBtn').addEventListener('click', function () { track('interes_pro'); });
 
   function encodeLatin1(str) {
     var out = new Uint8Array(str.length);
     for (var i = 0; i < str.length; i++) { var c = str.charCodeAt(i); out[i] = c < 256 ? c : 63; }
     return out;
   }
-
   function download(name, text, enc) {
     var data = enc === 'latin1' ? encodeLatin1(text) : new TextEncoder().encode('﻿' + text);
     var blob = new Blob([data], { type: 'text/csv;charset=' + (enc === 'latin1' ? 'windows-1252' : 'utf-8') });
@@ -532,21 +817,24 @@
     var rows = sto.rows.map(function (r) { return r.slice(); });
     var cc = state.costCol;
     a.results.forEach(function (r) {
-      if (state.selected[r.rowIndex]) rows[r.rowIndex][state.priceCol] = SIQ.formatLike(rows[r.rowIndex][state.priceCol], r.newPrice);
+      if (!state.selected[r.rowIndex]) return;
+      rows[r.rowIndex][state.priceCol] = SIQ.formatLike(rows[r.rowIndex][state.priceCol], r.newPrice);
       if (cc >= 0) rows[r.rowIndex][cc] = SIQ.formatLike(rows[r.rowIndex][cc] || rows[r.rowIndex][state.priceCol], Math.round(r.cost * 100) / 100);
     });
     var choice = $('outEnc').value;
     var enc = choice === 'same' ? sto.enc : choice;
     download(sto.name.replace(/\.(csv|txt)$/i, '') + '-precios-actualizados.csv', SIQ.toCSV(rows, sto.delim, 'tiendanube'), enc);
+    track('descargas');
+    step(4);
   });
 
   $('dlReport').addEventListener('click', function () {
     var a = state.analysis; if (!a) return;
-    var out = [['SKU', 'Producto', 'Costo nuevo', 'Precio actual', 'Margen actual %', 'Precio nuevo', 'Margen nuevo %', 'Se aplica']];
+    var out = [['SKU', 'Producto', 'Cruce', 'Descripción del proveedor', 'Costo nuevo', 'Precio actual', 'Margen actual %', 'Precio nuevo', 'Margen nuevo %', 'Se aplica']];
     a.results.forEach(function (r) {
-      out.push([r.sku, r.name, r.cost.toFixed(2), isNaN(r.price) ? '' : r.price, isNaN(r.margin) ? '' : (r.margin * 100).toFixed(1), r.newPrice.toFixed(2), isNaN(r.newMargin) ? '' : (r.newMargin * 100).toFixed(1), state.selected[r.rowIndex] ? 'Sí' : 'No']);
+      out.push([r.sku, r.name, r.matchType === 'sku' ? 'SKU' : 'Nombre ' + Math.round(r.score * 100) + '%', r.supplierName, r.cost.toFixed(2), isNaN(r.price) ? '' : r.price, isNaN(r.margin) ? '' : (r.margin * 100).toFixed(1), r.newPrice.toFixed(2), isNaN(r.newMargin) ? '' : (r.newMargin * 100).toFixed(1), state.selected[r.rowIndex] ? 'Sí' : (state.locked[r.rowIndex] ? 'Pro' : 'No')]);
     });
-    a.unmatchedSupplier.forEach(function (s) { out.push([s.sku, 'Sin coincidencia en la tienda', '', '', '', '', '', 'No']); });
+    a.unmatchedSupplier.forEach(function (s) { out.push([s.sku, '', 'Sin coincidencia', s.name, '', '', '', '', '', 'No']); });
     download('reporte-supplieriq.csv', SIQ.toCSV(out, ';'), 'utf8');
   });
 })();
