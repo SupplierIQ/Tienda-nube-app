@@ -102,6 +102,7 @@
           <label>Precio<select id="stoPrice"></select></label>
         </div>
         <label>Nombre del producto<select id="stoName"></select></label>
+        <label>Actualizar también la columna de costo<select id="stoCost"></select></label>
       </div>
     </section>
 
@@ -235,11 +236,14 @@
     return { delim: delim, rows: rows };
   }
 
-  function toCSV(rows, delim) {
+  // style 'tiendanube': también entrecomilla los textos con espacios, como el archivo que exporta Tiendanube.
+  function toCSV(rows, delim, style) {
     return rows.map(function (r) {
       return r.map(function (c) {
         var s = c === undefined || c === null ? '' : String(c);
-        if (s.indexOf('"') > -1 || s.indexOf(delim) > -1 || s.indexOf('\n') > -1 || s.indexOf('\r') > -1) {
+        var needs = s.indexOf('"') > -1 || s.indexOf(delim) > -1 || s.indexOf('\n') > -1 || s.indexOf('\r') > -1;
+        if (style === 'tiendanube' && /\s/.test(s)) needs = true;
+        if (needs) {
           s = '"' + s.replace(/"/g, '""') + '"';
         }
         return s;
@@ -428,6 +432,7 @@
         fillSelect($('stoSku'), headers, SIQ.guessColumn(headers, ['SKU']), false);
         fillSelect($('stoPrice'), headers, SIQ.guessColumn(headers, ['Precio']), false);
         fillSelect($('stoName'), headers, SIQ.guessColumn(headers, ['Nombre']), true);
+        fillSelect($('stoCost'), headers, SIQ.guessColumn(headers, ['Costo']), true);
         $('stoCols').classList.remove('hidden');
         setStatus(st, f.name + ' · ' + (parsed.rows.length - 1) + ' filas de productos.', 'ok');
       } catch (err) {
@@ -467,7 +472,7 @@
     });
 
     var a = SIQ.analyze(supplier, store, cfg());
-    state.analysis = a; state.priceCol = jP; state.selected = {};
+    state.analysis = a; state.priceCol = jP; state.costCol = +$('stoCost').value; state.selected = {};
     a.results.forEach(function (r) { if (r.change) state.selected[r.rowIndex] = true; });
     render();
     $('results').classList.remove('hidden');
@@ -525,12 +530,14 @@
   $('dlCsv').addEventListener('click', function () {
     var sto = state.sto, a = state.analysis; if (!sto || !a) return;
     var rows = sto.rows.map(function (r) { return r.slice(); });
+    var cc = state.costCol;
     a.results.forEach(function (r) {
       if (state.selected[r.rowIndex]) rows[r.rowIndex][state.priceCol] = SIQ.formatLike(rows[r.rowIndex][state.priceCol], r.newPrice);
+      if (cc >= 0) rows[r.rowIndex][cc] = SIQ.formatLike(rows[r.rowIndex][cc] || rows[r.rowIndex][state.priceCol], Math.round(r.cost * 100) / 100);
     });
     var choice = $('outEnc').value;
     var enc = choice === 'same' ? sto.enc : choice;
-    download(sto.name.replace(/\.(csv|txt)$/i, '') + '-precios-actualizados.csv', SIQ.toCSV(rows, sto.delim), enc);
+    download(sto.name.replace(/\.(csv|txt)$/i, '') + '-precios-actualizados.csv', SIQ.toCSV(rows, sto.delim, 'tiendanube'), enc);
   });
 
   $('dlReport').addEventListener('click', function () {
