@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SupplierIQ · Actualizador de precios (versión de prueba)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root { --ink:#151A23; --muted:#5B6472; --line:#E2E5EA; --bg:#F4F6FA; --blue:#1F4FC4; --blue-d:#163A92; --warn-bg:#FDEBDD; --warn:#8A3708; --ok-bg:#E3F2E8; --ok:#1D6436; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Inter, system-ui, sans-serif; color: var(--ink); background: var(--bg); }
+  a { color: var(--blue); } a:hover { color: var(--blue-d); }
+  header { background:#fff; border-bottom:1px solid var(--line); }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+  .top { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:16px 0; }
+  .brand { display:flex; align-items:center; gap:10px; font-family:'Space Grotesk', Inter, sans-serif; font-weight:700; font-size:18px; color:var(--ink); text-decoration:none; }
+  .logo { width:34px; height:34px; border-radius:8px; background:var(--blue); display:flex; align-items:center; justify-content:center; }
+  .badge { padding:4px 10px; border-radius:999px; background:#E3EAFB; color:var(--blue-d); font-size:12px; font-weight:600; }
+  h1 { font-family:'Space Grotesk', Inter, sans-serif; font-size:32px; margin:32px 0 8px; }
+  .lead { margin:0 0 8px; color:#3D4553; font-size:16px; line-height:1.5; max-width:760px; }
+  .privacy { display:flex; gap:8px; align-items:center; font-size:13px; color:var(--ok); margin-bottom:24px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:20px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:22px; display:flex; flex-direction:column; gap:14px; }
+  .card h2 { margin:0; font-size:17px; display:flex; align-items:center; gap:10px; }
+  .num { width:28px; height:28px; border-radius:999px; background:var(--blue); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:14px; flex:none; }
+  .hint { margin:0; font-size:13px; color:var(--muted); line-height:1.45; }
+  label { font-size:14px; display:flex; flex-direction:column; gap:6px; font-weight:500; }
+  .row { display:flex; flex-wrap:wrap; gap:12px; }
+  .row > label { flex:1 1 140px; }
+  select, input[type=number], input[type=text] { padding:10px; border:1px solid #C9CED6; border-radius:8px; font:inherit; font-weight:400; background:#fff; min-height:44px; }
+  input[type=file] { font:inherit; font-size:14px; }
+  .check { flex-direction:row; align-items:center; gap:10px; font-weight:400; }
+  .check input { width:18px; height:18px; }
+  .status { font-size:13px; padding:10px 12px; border-radius:8px; background:var(--bg); color:#3D4553; }
+  .status.ok { background:var(--ok-bg); color:var(--ok); }
+  .status.err { background:var(--warn-bg); color:var(--warn); }
+  .btn { padding:13px 20px; border-radius:8px; border:0; background:var(--blue); color:#fff; font:inherit; font-weight:700; font-size:15px; cursor:pointer; min-height:44px; }
+  .btn:disabled { background:#A9B4C6; cursor:not-allowed; }
+  .btn.ghost { background:#fff; color:var(--ink); border:1px solid #C9CED6; font-weight:600; }
+  .actions { display:flex; flex-wrap:wrap; gap:12px; justify-content:flex-end; margin:24px 0; }
+  .kpis { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:16px; margin-bottom:20px; }
+  .kpi { background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px; display:flex; flex-direction:column; gap:4px; }
+  .kpi span { font-size:13px; color:var(--muted); }
+  .kpi strong { font-size:28px; }
+  .tablebox { background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .tabletools { display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; align-items:center; padding:14px 18px; border-bottom:1px solid var(--line); }
+  .scroll { overflow-x:auto; max-height:560px; overflow-y:auto; }
+  table { width:100%; min-width:860px; border-collapse:collapse; font-size:14px; }
+  th { position:sticky; top:0; background:#F8F9FB; color:var(--muted); font-weight:600; text-align:left; padding:11px 12px; }
+  td { padding:11px 12px; border-top:1px solid #EEF0F3; }
+  td.r, th.r { text-align:right; }
+  .pill { padding:3px 8px; border-radius:999px; font-weight:600; white-space:nowrap; }
+  .pill.low { background:var(--warn-bg); color:var(--warn); }
+  .pill.good { background:var(--ok-bg); color:var(--ok); }
+  .new { font-weight:700; color:var(--blue); }
+  .hidden { display:none !important; }
+  footer { font-size:13px; color:var(--muted); padding:32px 0 48px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap top">
+    <a class="brand" href="../">
+      <span class="logo"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"></path><path d="M14 7h7v7"></path></svg></span>
+      SupplierIQ
+    </a>
+    <span class="badge">Versión de prueba · gratis</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>Actualizá tus precios con la lista nueva del proveedor</h1>
+  <p class="lead">Subí la lista del proveedor y el archivo de productos que exportás de Tiendanube. Te mostramos qué productos pierden margen y te devolvemos el archivo con los precios corregidos, listo para volver a importar.</p>
+  <p class="privacy"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>Tus archivos no se suben a ningún servidor: todo se procesa en tu navegador.</p>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="t1">
+      <h2 id="t1"><span class="num">1</span>Lista del proveedor</h2>
+      <p class="hint">Excel (.xlsx, .xls) o CSV, tal como te llegó.</p>
+      <label>Archivo<input type="file" id="supFile" accept=".xlsx,.xls,.csv,.txt"></label>
+      <div id="supStatus" class="status hidden" role="status"></div>
+      <div id="supCols" class="hidden" style="display:flex; flex-direction:column; gap:12px">
+        <label>Fila de encabezados<input type="number" id="supHeader" min="1" value="1"></label>
+        <div class="row">
+          <label>Código / SKU<select id="supSku"></select></label>
+          <label>Precio de lista<select id="supPrice"></select></label>
+        </div>
+        <label>Bonificación % por producto (opcional)<select id="supDisc"></select></label>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="t2">
+      <h2 id="t2"><span class="num">2</span>Productos de tu tienda</h2>
+      <p class="hint">En Tiendanube: Productos › Lista de productos › Exportar e importar › Exportar. Subí ese CSV sin modificarlo.</p>
+      <label>Archivo CSV<input type="file" id="stoFile" accept=".csv,.txt"></label>
+      <div id="stoStatus" class="status hidden" role="status"></div>
+      <div id="stoCols" class="hidden" style="display:flex; flex-direction:column; gap:12px">
+        <div class="row">
+          <label>SKU<select id="stoSku"></select></label>
+          <label>Precio<select id="stoPrice"></select></label>
+        </div>
+        <label>Nombre del producto<select id="stoName"></select></label>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="t3">
+      <h2 id="t3"><span class="num">3</span>Cómo calcular</h2>
+      <div class="row">
+        <label>Margen mínimo %<input type="number" id="cfgMargin" value="30" min="0" max="95" step="1"></label>
+        <label>Redondear a<select id="cfgRound"><option value="0">Sin redondeo</option><option value="10">$ 10</option><option value="50" selected>$ 50</option><option value="100">$ 100</option><option value="500">$ 500</option></select></label>
+      </div>
+      <div class="row">
+        <label>Bonificación general %<input type="number" id="cfgDisc" value="0" min="0" max="100" step="0.5"></label>
+        <label>Flete / otros %<input type="number" id="cfgFreight" value="0" min="0" step="0.5"></label>
+      </div>
+      <label class="check"><input type="checkbox" id="cfgVat">Sumar IVA (21%) al costo</label>
+      <label class="check"><input type="checkbox" id="cfgAll">Aplicar el margen mínimo a todos (también bajar precios altos)</label>
+      <p class="hint">El margen se calcula sobre el precio de venta: (precio − costo) ÷ precio.</p>
+    </section>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="run" type="button" disabled>Calcular precios</button>
+  </div>
+
+  <section id="results" class="hidden" aria-labelledby="rt">
+    <h2 id="rt" style="font-family:'Space Grotesk', Inter, sans-serif; font-size:24px; margin:8px 0 16px">Resultado</h2>
+    <div class="kpis">
+      <div class="kpi"><span>Productos encontrados</span><strong id="kMatched">0</strong><span id="kMatchedSub"></span></div>
+      <div class="kpi"><span>Debajo del margen mínimo</span><strong id="kBelow" style="color:var(--warn)">0</strong><span>con el costo nuevo</span></div>
+      <div class="kpi"><span>Precios a actualizar</span><strong id="kChange">0</strong><span>seleccionados</span></div>
+      <div class="kpi"><span>Sin coincidencia</span><strong id="kUnmatched">0</strong><span>códigos del proveedor que no están en tu tienda</span></div>
+    </div>
+    <div class="tablebox">
+      <div class="tabletools">
+        <label class="check"><input type="checkbox" id="onlyBelow" checked>Mostrar solo los que cambian</label>
+        <span class="hint" id="shownInfo"></span>
+      </div>
+      <div class="scroll">
+        <table>
+          <thead><tr>
+            <th scope="col">Aplicar</th><th scope="col">Producto</th><th scope="col">SKU</th>
+            <th scope="col" class="r">Costo nuevo</th><th scope="col" class="r">Precio actual</th>
+            <th scope="col">Margen actual</th><th scope="col" class="r">Precio nuevo</th><th scope="col">Margen nuevo</th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="actions">
+      <label style="flex-direction:row; align-items:center; gap:8px">Codificación del archivo
+        <select id="outEnc"><option value="same">Igual que el original</option><option value="utf8">UTF-8</option><option value="latin1">Latin-1 (Windows)</option></select>
+      </label>
+      <button class="btn ghost" id="dlReport" type="button">Descargar reporte de cambios</button>
+      <button class="btn" id="dlCsv" type="button">Descargar CSV para Tiendanube</button>
+    </div>
+    <p class="hint">Antes de importar, guardá una copia del CSV original. Importalo en Tiendanube con la opción "Modificar productos ya existentes".</p>
+  </section>
+
+  <footer>SupplierIQ · Versión de prueba · <a href="../">Volver al inicio</a> · ¿Encontraste un error o tenés una idea? <a href="mailto:maxicongar@gmail.com?subject=SupplierIQ%20herramienta">Escribime</a></footer>
+</main>
+
+<script>
+// SupplierIQ v1 — lógica de cálculo (sin dependencias, se usa en el navegador y en pruebas).
+(function (root) {
+  'use strict';
+
+  // Convierte textos de precio en número. Acepta "48.632,00", "48,632.00", "$ 3.650", "1234.5", 1234.
+  function parseNum(v) {
+    if (v === null || v === undefined) return NaN;
+    if (typeof v === 'number') return v;
+    var s = String(v).trim().replace(/[^\d.,\-]/g, '');
+    if (!s) return NaN;
+    var lastDot = s.lastIndexOf('.');
+    var lastComma = s.lastIndexOf(',');
+    if (lastDot > -1 && lastComma > -1) {
+      if (lastComma > lastDot) s = s.replace(/\./g, '').replace(',', '.');
+      else s = s.replace(/,/g, '');
+    } else if (lastComma > -1) {
+      var partsC = s.split(',');
+      if (partsC.length > 2) s = s.replace(/,/g, '');
+      else s = s.replace(',', '.');
+    } else if (lastDot > -1) {
+      var partsD = s.split('.');
+      if (partsD.length > 2 || partsD[partsD.length - 1].length === 3) s = s.replace(/\./g, '');
+    }
+    var n = parseFloat(s);
+    return isNaN(n) ? NaN : n;
+  }
+
+  function normSku(v) {
+    return String(v === undefined || v === null ? '' : v).trim().toUpperCase().replace(/\s+/g, '');
+  }
+
+  // Detecta el separador de un CSV mirando la primera línea.
+  function detectDelimiter(text) {
+    var first = text.split(/\r?\n/)[0] || '';
+    var counts = { ';': 0, ',': 0, '\t': 0 };
+    var inQ = false;
+    for (var i = 0; i < first.length; i++) {
+      var ch = first[i];
+      if (ch === '"') inQ = !inQ;
+      else if (!inQ && counts.hasOwnProperty(ch)) counts[ch]++;
+    }
+    var best = ';';
+    if (counts[','] > counts[best]) best = ',';
+    if (counts['\t'] > counts[best]) best = '\t';
+    return best;
+  }
+
+  // Parser CSV con comillas (RFC 4180).
+  function parseCSV(text, delim) {
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    delim = delim || detectDelimiter(text);
+    var rows = [], row = [], field = '', inQ = false;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (inQ) {
+        if (ch === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; }
+          else inQ = false;
+        } else field += ch;
+      } else {
+        if (ch === '"' && field === '') inQ = true;
+        else if (ch === delim) { row.push(field); field = ''; }
+        else if (ch === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+        else if (ch === '\r') { /* ignorar */ }
+        else field += ch;
+      }
+    }
+    if (field !== '' || row.length) { row.push(field); rows.push(row); }
+    while (rows.length && rows[rows.length - 1].every(function (c) { return c === ''; })) rows.pop();
+    return { delim: delim, rows: rows };
+  }
+
+  function toCSV(rows, delim) {
+    return rows.map(function (r) {
+      return r.map(function (c) {
+        var s = c === undefined || c === null ? '' : String(c);
+        if (s.indexOf('"') > -1 || s.indexOf(delim) > -1 || s.indexOf('\n') > -1 || s.indexOf('\r') > -1) {
+          s = '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+      }).join(delim);
+    }).join('\r\n') + '\r\n';
+  }
+
+  // Busca la columna cuyo encabezado coincide con alguno de los nombres sugeridos.
+  function guessColumn(headers, candidates) {
+    var norm = function (s) {
+      return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9%]/g, '');
+    };
+    var hs = headers.map(norm);
+    for (var c = 0; c < candidates.length; c++) {
+      var cand = norm(candidates[c]);
+      var exact = hs.indexOf(cand);
+      if (exact > -1) return exact;
+    }
+    for (var c2 = 0; c2 < candidates.length; c2++) {
+      var cand2 = norm(candidates[c2]);
+      for (var h = 0; h < hs.length; h++) if (cand2 && hs[h].indexOf(cand2) > -1) return h;
+    }
+    return -1;
+  }
+
+  function roundUp(n, step) {
+    if (!step || step <= 0) return Math.round(n * 100) / 100;
+    return Math.ceil(n / step - 1e-9) * step;
+  }
+
+  // Costo final por unidad según la configuración.
+  function finalCost(listPrice, discountPct, cfg) {
+    var c = listPrice;
+    if (!isNaN(discountPct) && discountPct) c = c * (1 - discountPct / 100);
+    if (cfg.generalDiscount) c = c * (1 - cfg.generalDiscount / 100);
+    if (cfg.addVat) c = c * (1 + (cfg.vatPct || 21) / 100);
+    if (cfg.freight) c = c * (1 + cfg.freight / 100);
+    return c;
+  }
+
+  // Cruza proveedor y tienda. supplier: [{sku, list, discount}], store: [{rowIndex, sku, price}]
+  function analyze(supplier, store, cfg) {
+    var bySku = {};
+    supplier.forEach(function (s) {
+      var k = normSku(s.sku);
+      if (k && !isNaN(s.list)) bySku[k] = s;
+    });
+    var results = [];
+    var matchedSkus = {};
+    store.forEach(function (p) {
+      var k = normSku(p.sku);
+      if (!k || !bySku[k]) return;
+      matchedSkus[k] = true;
+      var s = bySku[k];
+      var cost = finalCost(s.list, s.discount, cfg);
+      var price = p.price;
+      var margin = price > 0 ? (price - cost) / price : NaN;
+      var target = cost / (1 - cfg.minMargin / 100);
+      var suggested = roundUp(target, cfg.rounding);
+      var below = !(margin >= cfg.minMargin / 100 - 1e-9);
+      var newPrice = below ? suggested : (cfg.applyAll ? suggested : price);
+      results.push({
+        rowIndex: p.rowIndex,
+        sku: p.sku,
+        name: p.name || s.name || '',
+        cost: cost,
+        price: price,
+        margin: margin,
+        newPrice: newPrice,
+        newMargin: newPrice > 0 ? (newPrice - cost) / newPrice : NaN,
+        below: below,
+        change: newPrice !== price
+      });
+    });
+    var unmatchedSupplier = supplier.filter(function (s) { var k = normSku(s.sku); return k && !matchedSkus[k]; });
+    return { results: results, unmatchedSupplier: unmatchedSupplier };
+  }
+
+  // Formatea el número igual que el valor original (coma o punto decimal).
+  function formatLike(original, n) {
+    var s = String(original || '');
+    var useComma = /\d,\d{1,2}$/.test(s.trim());
+    var hasDecimals = /[.,]\d{1,2}$/.test(s.trim()) || Math.round(n) !== n;
+    var out = hasDecimals ? n.toFixed(2) : String(Math.round(n));
+    return useComma ? out.replace('.', ',') : out;
+  }
+
+  root.SIQ = {
+    parseNum: parseNum, normSku: normSku, detectDelimiter: detectDelimiter, parseCSV: parseCSV,
+    toCSV: toCSV, guessColumn: guessColumn, roundUp: roundUp, finalCost: finalCost,
+    analyze: analyze, formatLike: formatLike
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { supRows: null, sto: null, analysis: null, selected: {} };
+  var esc = function (s) { return String(s === undefined || s === null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var money = function (n) { return isNaN(n) ? '—' : '$ ' + n.toLocaleString('es-AR', { maximumFractionDigits: 2 }); };
+  var pct = function (n) { return isNaN(n) ? '—' : (n * 100).toLocaleString('es-AR', { maximumFractionDigits: 1 }) + '%'; };
+
+  function setStatus(el, msg, kind) { el.textContent = msg; el.className = 'status' + (kind ? ' ' + kind : ''); }
+
+  function decodeText(buf) {
+    var t = new TextDecoder('utf-8').decode(buf);
+    if (t.indexOf('�') > -1) return { text: new TextDecoder('windows-1252').decode(buf), enc: 'latin1' };
+    return { text: t, enc: 'utf8' };
+  }
+
+  function fillSelect(sel, headers, guess, allowNone) {
+    sel.innerHTML = (allowNone ? '<option value="-1">— Ninguna —</option>' : '') +
+      headers.map(function (h, i) { return '<option value="' + i + '">' + esc(h || ('Columna ' + (i + 1))) + '</option>'; }).join('');
+    sel.value = String(guess >= 0 ? guess : (allowNone ? -1 : 0));
+  }
+
+  var SKU_NAMES = ['SKU', 'Código', 'Codigo', 'Cod. Art.', 'Cod Art', 'Cód.', 'Cod', 'Artículo', 'Articulo', 'Referencia', 'Ref'];
+  var PRICE_NAMES = ['Precio de lista', 'P. Lista', 'Precio lista', 'Lista', 'Precio unitario', 'Precio s/IVA', 'Costo', 'Precio neto', 'Precio'];
+  var DISC_NAMES = ['Bonif', 'Bonificación', 'Bonificacion', 'Descuento', 'Dto', 'Desc'];
+
+  function guessHeaderRow(rows) {
+    for (var i = 0; i < Math.min(rows.length, 25); i++) {
+      if (SIQ.guessColumn(rows[i].map(String), SKU_NAMES) > -1 && SIQ.guessColumn(rows[i].map(String), PRICE_NAMES) > -1) return i;
+    }
+    for (var j = 0; j < Math.min(rows.length, 25); j++) {
+      if (rows[j].filter(function (c) { return String(c).trim() !== ''; }).length >= 3) return j;
+    }
+    return 0;
+  }
+
+  function refreshSupColumns() {
+    var rows = state.supRows; if (!rows) return;
+    var hr = Math.max(0, Math.min(rows.length - 1, (parseInt($('supHeader').value, 10) || 1) - 1));
+    var headers = rows[hr].map(function (c) { return String(c); });
+    fillSelect($('supSku'), headers, SIQ.guessColumn(headers, SKU_NAMES), false);
+    fillSelect($('supPrice'), headers, SIQ.guessColumn(headers, PRICE_NAMES), false);
+    fillSelect($('supDisc'), headers, SIQ.guessColumn(headers, DISC_NAMES), true);
+  }
+
+  $('supFile').addEventListener('change', function (e) {
+    var f = e.target.files[0]; if (!f) return;
+    var st = $('supStatus');
+    setStatus(st, 'Leyendo ' + f.name + '…');
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var rows;
+        if (/\.(xlsx|xls)$/i.test(f.name)) {
+          if (typeof XLSX === 'undefined') throw new Error('No se pudo cargar el lector de Excel. Revisá tu conexión o guardá la lista como CSV.');
+          var wb = XLSX.read(new Uint8Array(reader.result), { type: 'array' });
+          var ws = wb.Sheets[wb.SheetNames[0]];
+          rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+        } else {
+          rows = SIQ.parseCSV(decodeText(reader.result).text).rows;
+        }
+        rows = rows.filter(function (r) { return r.some(function (c) { return String(c).trim() !== ''; }); });
+        if (rows.length < 2) throw new Error('El archivo no tiene filas con datos.');
+        state.supRows = rows;
+        $('supHeader').value = guessHeaderRow(rows) + 1;
+        refreshSupColumns();
+        $('supCols').classList.remove('hidden');
+        setStatus(st, f.name + ' · ' + (rows.length - 1) + ' filas leídas. Revisá que las columnas sean las correctas.', 'ok');
+      } catch (err) {
+        state.supRows = null; $('supCols').classList.add('hidden');
+        setStatus(st, err.message || 'No se pudo leer el archivo.', 'err');
+      }
+      updateRun();
+    };
+    reader.readAsArrayBuffer(f);
+  });
+  $('supHeader').addEventListener('change', refreshSupColumns);
+
+  $('stoFile').addEventListener('change', function (e) {
+    var f = e.target.files[0]; if (!f) return;
+    var st = $('stoStatus');
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var dec = decodeText(reader.result);
+        var parsed = SIQ.parseCSV(dec.text);
+        if (parsed.rows.length < 2) throw new Error('El CSV no tiene productos.');
+        state.sto = { rows: parsed.rows, delim: parsed.delim, enc: dec.enc, name: f.name };
+        var headers = parsed.rows[0];
+        fillSelect($('stoSku'), headers, SIQ.guessColumn(headers, ['SKU']), false);
+        fillSelect($('stoPrice'), headers, SIQ.guessColumn(headers, ['Precio']), false);
+        fillSelect($('stoName'), headers, SIQ.guessColumn(headers, ['Nombre']), true);
+        $('stoCols').classList.remove('hidden');
+        setStatus(st, f.name + ' · ' + (parsed.rows.length - 1) + ' filas de productos.', 'ok');
+      } catch (err) {
+        state.sto = null; $('stoCols').classList.add('hidden');
+        setStatus(st, err.message || 'No se pudo leer el archivo.', 'err');
+      }
+      updateRun();
+    };
+    reader.readAsArrayBuffer(f);
+  });
+
+  function updateRun() { $('run').disabled = !(state.supRows && state.sto); }
+
+  function cfg() {
+    return {
+      minMargin: Math.min(95, Math.max(0, parseFloat($('cfgMargin').value) || 0)),
+      rounding: parseFloat($('cfgRound').value) || 0,
+      generalDiscount: parseFloat($('cfgDisc').value) || 0,
+      freight: parseFloat($('cfgFreight').value) || 0,
+      addVat: $('cfgVat').checked, vatPct: 21,
+      applyAll: $('cfgAll').checked
+    };
+  }
+
+  $('run').addEventListener('click', function () {
+    var rows = state.supRows;
+    var hr = (parseInt($('supHeader').value, 10) || 1) - 1;
+    var iS = +$('supSku').value, iP = +$('supPrice').value, iD = +$('supDisc').value;
+    var supplier = rows.slice(hr + 1).map(function (r) {
+      return { sku: r[iS], list: SIQ.parseNum(r[iP]), discount: iD >= 0 ? SIQ.parseNum(r[iD]) : 0 };
+    }).filter(function (s) { return SIQ.normSku(s.sku) && !isNaN(s.list) && s.list > 0; });
+
+    var sto = state.sto;
+    var jS = +$('stoSku').value, jP = +$('stoPrice').value, jN = +$('stoName').value;
+    var store = sto.rows.slice(1).map(function (r, i) {
+      return { rowIndex: i + 1, sku: r[jS], price: SIQ.parseNum(r[jP]), name: jN >= 0 ? r[jN] : '' };
+    });
+
+    var a = SIQ.analyze(supplier, store, cfg());
+    state.analysis = a; state.priceCol = jP; state.selected = {};
+    a.results.forEach(function (r) { if (r.change) state.selected[r.rowIndex] = true; });
+    render();
+    $('results').classList.remove('hidden');
+    $('results').scrollIntoView({ behavior: 'smooth' });
+  });
+
+  function render() {
+    var a = state.analysis; if (!a) return;
+    var res = a.results;
+    $('kMatched').textContent = res.length;
+    $('kMatchedSub').textContent = 'filas de tu tienda con el mismo SKU';
+    $('kBelow').textContent = res.filter(function (r) { return r.below; }).length;
+    $('kChange').textContent = Object.keys(state.selected).length;
+    $('kUnmatched').textContent = a.unmatchedSupplier.length;
+    var only = $('onlyBelow').checked;
+    var shown = res.filter(function (r) { return !only || r.change; });
+    var limit = 500;
+    $('shownInfo').textContent = shown.length > limit ? 'Mostrando 500 de ' + shown.length + ' (el archivo incluye todos)' : shown.length + ' productos';
+    $('tbody').innerHTML = shown.slice(0, limit).map(function (r) {
+      var checked = state.selected[r.rowIndex] ? ' checked' : '';
+      var dis = r.change ? '' : ' disabled';
+      return '<tr>' +
+        '<td><input type="checkbox" data-row="' + r.rowIndex + '"' + checked + dis + ' aria-label="Aplicar precio nuevo a ' + esc(r.name || r.sku) + '" style="width:18px;height:18px"></td>' +
+        '<td>' + esc(r.name) + '</td><td>' + esc(r.sku) + '</td>' +
+        '<td class="r">' + money(r.cost) + '</td><td class="r">' + money(r.price) + '</td>' +
+        '<td><span class="pill ' + (r.below ? 'low' : 'good') + '">' + pct(r.margin) + '</span></td>' +
+        '<td class="r ' + (r.change ? 'new' : '') + '">' + (r.change ? money(r.newPrice) : 'Mantener') + '</td>' +
+        '<td>' + pct(r.newMargin) + '</td></tr>';
+    }).join('');
+  }
+
+  $('onlyBelow').addEventListener('change', render);
+  $('tbody').addEventListener('change', function (e) {
+    var row = e.target.getAttribute('data-row'); if (!row) return;
+    if (e.target.checked) state.selected[row] = true; else delete state.selected[row];
+    $('kChange').textContent = Object.keys(state.selected).length;
+  });
+
+  function encodeLatin1(str) {
+    var out = new Uint8Array(str.length);
+    for (var i = 0; i < str.length; i++) { var c = str.charCodeAt(i); out[i] = c < 256 ? c : 63; }
+    return out;
+  }
+
+  function download(name, text, enc) {
+    var data = enc === 'latin1' ? encodeLatin1(text) : new TextEncoder().encode('﻿' + text);
+    var blob = new Blob([data], { type: 'text/csv;charset=' + (enc === 'latin1' ? 'windows-1252' : 'utf-8') });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url; link.download = name;
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  }
+
+  $('dlCsv').addEventListener('click', function () {
+    var sto = state.sto, a = state.analysis; if (!sto || !a) return;
+    var rows = sto.rows.map(function (r) { return r.slice(); });
+    a.results.forEach(function (r) {
+      if (state.selected[r.rowIndex]) rows[r.rowIndex][state.priceCol] = SIQ.formatLike(rows[r.rowIndex][state.priceCol], r.newPrice);
+    });
+    var choice = $('outEnc').value;
+    var enc = choice === 'same' ? sto.enc : choice;
+    download(sto.name.replace(/\.(csv|txt)$/i, '') + '-precios-actualizados.csv', SIQ.toCSV(rows, sto.delim), enc);
+  });
+
+  $('dlReport').addEventListener('click', function () {
+    var a = state.analysis; if (!a) return;
+    var out = [['SKU', 'Producto', 'Costo nuevo', 'Precio actual', 'Margen actual %', 'Precio nuevo', 'Margen nuevo %', 'Se aplica']];
+    a.results.forEach(function (r) {
+      out.push([r.sku, r.name, r.cost.toFixed(2), isNaN(r.price) ? '' : r.price, isNaN(r.margin) ? '' : (r.margin * 100).toFixed(1), r.newPrice.toFixed(2), isNaN(r.newMargin) ? '' : (r.newMargin * 100).toFixed(1), state.selected[r.rowIndex] ? 'Sí' : 'No']);
+    });
+    a.unmatchedSupplier.forEach(function (s) { out.push([s.sku, 'Sin coincidencia en la tienda', '', '', '', '', '', 'No']); });
+    download('reporte-supplieriq.csv', SIQ.toCSV(out, ';'), 'utf8');
+  });
+})();
+</script>
+</body>
+</html>
